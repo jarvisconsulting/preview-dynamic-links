@@ -140,16 +140,12 @@
         var code = p.get('code');
         var base = p.get('base'); // e.g. https://staging.bjpsrl.in
 
-        var ua      = navigator.userAgent || '';
-        var isIOS   = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
-        var isAndroid = /Android/.test(ua);
+        var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent || '') && !window.MSStream;
 
         function render(data) {
-            var redirectURL     = data.redirect_url      || '';
-            var appURL          = data.app_url           || '';
-            var iosStore        = data.ios_store_url     || '';
-            var androidStore    = data.android_store_url || '';
-            var iosAppID        = data.ios_app_id        || '';
+            var redirectURL = data.redirect_url  || '';
+            var iosStore    = data.ios_store_url || '';
+            var iosAppID    = data.ios_app_id    || '';
 
             document.title = data.title || 'Opening...';
             document.getElementById('preview-title').textContent = data.title || '';
@@ -171,15 +167,10 @@
                     'app-id=' + iosAppID + ', app-argument=' + redirectURL);
             }
 
-            var storeURL     = isIOS ? iosStore : (isAndroid ? androidStore : (iosStore || androidStore));
-            var storeBtnText = isIOS ? 'Download on App Store' : (isAndroid ? 'Get it on Google Play' : 'Download App');
-
-            // iOS: use universalLinkURL + ?nr=1 so if app is not installed and Safari falls
-            //      back to opening bjpsrl.in/code, redirect.html won't loop back here.
-            // Android: use appURL (Intent URL) so Chrome opens the app or goes to Play Store natively.
-            var openHref = isAndroid
-                ? (appURL || universalLinkURL)
-                : (universalLinkURL ? universalLinkURL + '?nr=1' : '');
+            // This page is only shown to iOS users — Android is handled server-side.
+            // If app is not installed, Safari falls back to opening yourserver.com/code;
+            // ?nr=1 tells the server not to loop back to this preview page.
+            var openHref = universalLinkURL ? universalLinkURL + '?nr=1' : '';
 
             if (openHref) {
                 var openBtn = document.createElement('a');
@@ -187,17 +178,24 @@
                 openBtn.className = 'btn-open';
                 openBtn.textContent = 'Open App';
                 openBtn.addEventListener('click', function() {
-                    // Show fallback after delay in case app is not installed
-                    var delay = isAndroid ? 2000 : 1500;
+                    var appOpened = false;
                     var fallbackTimer = setTimeout(function() {
-                        showFallback(storeURL, storeBtnText, redirectURL);
-                    }, delay);
+                        if (!appOpened) {
+                            showFallback(iosStore, 'Download on App Store', redirectURL);
+                        }
+                    }, 1500);
 
-                    // App opened — page goes hidden; cancel the fallback
-                    document.addEventListener('visibilitychange', function onHide() {
+                    // Track visibility changes to detect whether the app opened.
+                    // hidden  → app launched (or user switched tabs) — mark appOpened and cancel timer.
+                    // visible → user returned from app — timer already cancelled, do nothing.
+                    document.addEventListener('visibilitychange', function onVisibility() {
                         if (document.hidden) {
+                            appOpened = true;
                             clearTimeout(fallbackTimer);
-                            document.removeEventListener('visibilitychange', onHide);
+                        }
+                        // Once visible again after app opened, remove the listener — we're done.
+                        if (!document.hidden && appOpened) {
+                            document.removeEventListener('visibilitychange', onVisibility);
                         }
                     });
                 });
