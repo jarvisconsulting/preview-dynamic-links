@@ -256,14 +256,6 @@
                 });
                 storeActions.appendChild(openBtn);
             }
-
-            if (redirectURL) {
-                var webLink = document.createElement('a');
-                webLink.href        = redirectURL;
-                webLink.className   = 'link-web';
-                webLink.textContent = 'Continue in browser';
-                storeActions.appendChild(webLink);
-            }
         }
 
         function showFallback(storeURL, redirectURL) {
@@ -300,4 +292,3 @@
     </script>
 </body>
 </html>
-
