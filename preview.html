@@ -261,7 +261,7 @@
         if (!code || !base) {
             showError();
         } else {
-            fetch(base + '/p/' + code)
+            fetch(base + '/api/preview/' + code)
                 .then(function(res) {
                     if (!res.ok) throw new Error('not found');
                     return res.json();
