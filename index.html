@@ -4,12 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Opening...</title>
-
-    <!-- Social metadata filled dynamically -->
-    <meta id="meta-description" name="description" content="">
-    <meta id="og-title" property="og:title" content="">
-    <meta id="og-description" property="og:description" content="">
-    <meta id="og-image" property="og:image" content="">
     <meta id="ios-app-banner" name="apple-itunes-app" content="">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -119,15 +113,12 @@
     </div>
 
     <div class="preview-card">
-        <div id="loading-state" class="loading-state">Loading...</div>
-        <div id="error-state" class="error-state" hidden>Link not found.</div>
-
-        <div id="content" hidden>
+        <div id="content">
             <header class="app-header">
                 <div class="app-icon" id="app-icon">S</div>
                 <div class="app-info">
                     <span class="app-name" id="app-name">Saral Links</span>
-                    <span class="app-status">Deep Link Preview</span>
+                    <span class="app-status">Opening app...</span>
                 </div>
             </header>
 
@@ -139,144 +130,77 @@
                 </div>
             </div>
 
-            <button id="open-btn" class="btn-open">
-                <div class="loader"></div>
-                <span class="btn-label">OPEN</span>
-            </button>
-
-            <div class="secondary-actions" id="store-actions"></div>
+            <!-- Shown only if app is not installed (after fallback timeout) -->
+            <div class="secondary-actions" id="store-actions" hidden></div>
         </div>
     </div>
 
     <script>
-        var params = new URLSearchParams(window.location.search);
-        var code   = params.get('code');
-        var base   = params.get('base'); // e.g. https://staging.bjpsrl.in
+        var p           = new URLSearchParams(window.location.search);
+        var title       = p.get('title')        || '';
+        var description = p.get('description')  || '';
+        var image       = p.get('image')        || '';
+        var redirectURL = p.get('redirect_url') || '';
+        var iosStore    = p.get('ios_store')    || '';
+        var iosAppID    = p.get('ios_app_id')   || '';
+        var projectName = p.get('project')      || '';
 
-        var isAndroid = /android/i.test(navigator.userAgent);
-        var isIOS     = /iphone|ipad|ipod|crios/i.test(navigator.userAgent);
+        // Populate UI from params
+        document.title = title || 'Opening...';
+        document.getElementById('preview-title').textContent = title;
+        document.getElementById('preview-desc').textContent  = description;
 
-        var linkData = null;
-
-        function showError() {
-            document.getElementById('loading-state').hidden = true;
-            document.getElementById('error-state').hidden = false;
+        if (image) {
+            var img = document.getElementById('preview-image');
+            img.src = image;
+            img.hidden = false;
         }
 
-        function render(data) {
-            linkData = data;
+        if (projectName) {
+            document.getElementById('app-icon').textContent = projectName.charAt(0).toUpperCase();
+            document.getElementById('app-name').textContent = projectName;
+        }
 
-            document.getElementById('loading-state').hidden = true;
-            document.getElementById('content').hidden = false;
+        if (iosAppID && redirectURL) {
+            document.getElementById('ios-app-banner').setAttribute('content',
+                'app-id=' + iosAppID + ', app-argument=' + redirectURL);
+        }
 
-            // Metadata
-            document.title = data.title || 'Opening...';
-            document.getElementById('preview-title').textContent = data.title || '';
-            document.getElementById('preview-desc').textContent  = data.description || '';
+        // Auto-trigger Universal Link immediately on page load.
+        // iOS intercepts navigation to bjpsrl.in from github.io (cross-domain) → opens app to correct screen.
+        if (redirectURL) {
+            window.location.href = redirectURL;
+        }
 
-            if (data.image_url) {
-                var img = document.getElementById('preview-image');
-                img.src = data.image_url;
-                img.hidden = false;
-            }
-
-            // App icon / name
-            if (data.project_name) {
-                document.getElementById('app-icon').textContent = data.project_name.charAt(0).toUpperCase();
-                document.getElementById('app-name').textContent = data.project_name;
-            }
-
-            // iOS Smart App Banner — uses redirect_url so Safari's native banner also works
-            if (data.ios_app_id && data.redirect_url) {
-                document.getElementById('ios-app-banner').setAttribute('content',
-                    'app-id=' + data.ios_app_id + ', app-argument=' + data.redirect_url);
-            }
-
-            // Store buttons (shown as fallback)
+        // If app not installed, show App Store button after 1.5s
+        var fallbackTimer = setTimeout(function() {
             var storeActions = document.getElementById('store-actions');
-            if (data.ios_store_url) {
+            storeActions.hidden = false;
+
+            if (iosStore) {
                 var a = document.createElement('a');
-                a.href = data.ios_store_url;
+                a.href = iosStore;
                 a.className = 'btn-open';
                 a.style.background = '#000';
                 a.textContent = 'Download on App Store';
                 storeActions.appendChild(a);
             }
-            if (data.android_store_url) {
+
+            if (redirectURL) {
                 var a2 = document.createElement('a');
-                a2.href = data.android_store_url;
-                a2.className = 'btn-open';
-                a2.style.background = '#3DDC84';
-                a2.style.color = 'black';
-                a2.textContent = 'Get it on Play Store';
+                a2.href = redirectURL;
+                a2.className = 'link-web';
+                a2.textContent = 'Continue to website';
                 storeActions.appendChild(a2);
             }
-            if (data.redirect_url) {
-                var a3 = document.createElement('a');
-                a3.href = data.redirect_url;
-                a3.className = 'link-web';
-                a3.textContent = 'Continue to website';
-                storeActions.appendChild(a3);
+        }, 1500);
+
+        // App opened — cancel the fallback
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                clearTimeout(fallbackTimer);
             }
-        }
-
-        function triggerOpen(e) {
-            e.preventDefault();
-            if (!linkData) return;
-
-            var btn = document.getElementById('open-btn');
-            btn.classList.add('is-loading');
-
-            // Android: use Intent URL (browser_fallback_url embedded, Chrome handles natively)
-            if (isAndroid && linkData.app_url && linkData.app_url.startsWith('intent://')) {
-                window.location.href = linkData.app_url;
-                return;
-            }
-
-            // iOS: navigate to redirect_url — iOS intercepts as Universal Link (cross-domain from github.io)
-            // This triggers continue(userActivity:) in the app, which navigates to the correct screen.
-            if (isIOS && linkData.redirect_url) {
-                window.location.href = linkData.redirect_url;
-
-                var fallbackTimer = setTimeout(function() {
-                    window.location.replace(linkData.ios_store_url || linkData.short_code_url);
-                }, 1500);
-
-                document.addEventListener('visibilitychange', function onVisibility() {
-                    if (document.hidden) {
-                        clearTimeout(fallbackTimer);
-                        document.removeEventListener('visibilitychange', onVisibility);
-                    }
-                });
-                return;
-            }
-
-            // Fallback
-            window.location.href = linkData.redirect_url || linkData.short_code_url;
-        }
-
-        document.getElementById('open-btn').addEventListener('click', triggerOpen);
-
-        // Fetch link details
-        if (!code || !base) {
-            showError();
-        } else {
-            fetch(base + '/api/preview/' + code)
-                .then(function(res) {
-                    if (!res.ok) throw new Error('not found');
-                    return res.json();
-                })
-                .then(function(json) {
-                    if (json.success && json.data) {
-                        render(json.data);
-                    } else {
-                        showError();
-                    }
-                })
-                .catch(function() {
-                    showError();
-                });
-        }
+        });
     </script>
 </body>
 </html>
