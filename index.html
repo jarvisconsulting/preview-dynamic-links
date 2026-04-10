@@ -136,71 +136,75 @@
     </div>
 
     <script>
-        var p           = new URLSearchParams(window.location.search);
-        var title       = p.get('title')        || '';
-        var description = p.get('description')  || '';
-        var image       = p.get('image')        || '';
-        var redirectURL = p.get('redirect_url') || '';
-        var iosStore    = p.get('ios_store')    || '';
-        var iosAppID    = p.get('ios_app_id')   || '';
-        var projectName = p.get('project')      || '';
+        var p    = new URLSearchParams(window.location.search);
+        var code = p.get('code');
+        var base = p.get('base'); // e.g. https://staging.bjpsrl.in
 
-        // Populate UI from params
-        document.title = title || 'Opening...';
-        document.getElementById('preview-title').textContent = title;
-        document.getElementById('preview-desc').textContent  = description;
+        function render(data) {
+            var redirectURL = data.redirect_url || '';
+            var iosStore    = data.ios_store_url || '';
+            var iosAppID    = data.ios_app_id   || '';
 
-        if (image) {
-            var img = document.getElementById('preview-image');
-            img.src = image;
-            img.hidden = false;
-        }
+            document.title = data.title || 'Opening...';
+            document.getElementById('preview-title').textContent = data.title || '';
+            document.getElementById('preview-desc').textContent  = data.description || '';
 
-        if (projectName) {
-            document.getElementById('app-icon').textContent = projectName.charAt(0).toUpperCase();
-            document.getElementById('app-name').textContent = projectName;
-        }
-
-        if (iosAppID && redirectURL) {
-            document.getElementById('ios-app-banner').setAttribute('content',
-                'app-id=' + iosAppID + ', app-argument=' + redirectURL);
-        }
-
-        // Auto-trigger Universal Link immediately on page load.
-        // iOS intercepts navigation to bjpsrl.in from github.io (cross-domain) → opens app to correct screen.
-        if (redirectURL) {
-            window.location.href = redirectURL;
-        }
-
-        // If app not installed, show App Store button after 1.5s
-        var fallbackTimer = setTimeout(function() {
-            var storeActions = document.getElementById('store-actions');
-            storeActions.hidden = false;
-
-            if (iosStore) {
-                var a = document.createElement('a');
-                a.href = iosStore;
-                a.className = 'btn-open';
-                a.style.background = '#000';
-                a.textContent = 'Download on App Store';
-                storeActions.appendChild(a);
+            if (data.image_url) {
+                var img = document.getElementById('preview-image');
+                img.src = data.image_url;
+                img.hidden = false;
             }
 
+            if (data.project_name) {
+                document.getElementById('app-icon').textContent = data.project_name.charAt(0).toUpperCase();
+                document.getElementById('app-name').textContent = data.project_name;
+            }
+
+            if (iosAppID && redirectURL) {
+                document.getElementById('ios-app-banner').setAttribute('content',
+                    'app-id=' + iosAppID + ', app-argument=' + redirectURL);
+            }
+
+            // Auto-trigger Universal Link on page load.
+            // iOS intercepts navigation to bjpsrl.in from github.io (cross-domain) → opens app to correct screen.
             if (redirectURL) {
-                var a2 = document.createElement('a');
-                a2.href = redirectURL;
-                a2.className = 'link-web';
-                a2.textContent = 'Continue to website';
-                storeActions.appendChild(a2);
+                window.location.href = redirectURL;
             }
-        }, 1500);
 
-        // App opened — cancel the fallback
-        document.addEventListener('visibilitychange', function() {
-            if (document.hidden) {
-                clearTimeout(fallbackTimer);
-            }
-        });
+            // If app not installed, show App Store button after 1.5s
+            var fallbackTimer = setTimeout(function() {
+                var storeActions = document.getElementById('store-actions');
+                storeActions.hidden = false;
+
+                if (iosStore) {
+                    var a = document.createElement('a');
+                    a.href = iosStore;
+                    a.className = 'btn-open';
+                    a.style.background = '#000';
+                    a.textContent = 'Download on App Store';
+                    storeActions.appendChild(a);
+                }
+                if (redirectURL) {
+                    var a2 = document.createElement('a');
+                    a2.href = redirectURL;
+                    a2.className = 'link-web';
+                    a2.textContent = 'Continue to website';
+                    storeActions.appendChild(a2);
+                }
+            }, 1500);
+
+            document.addEventListener('visibilitychange', function() {
+                if (document.hidden) clearTimeout(fallbackTimer);
+            });
+        }
+
+        if (code && base) {
+            fetch(base + '/api/preview/' + code)
+                .then(function(res) { return res.json(); })
+                .then(function(json) {
+                    if (json.success && json.data) render(json.data);
+                });
+        }
     </script>
 </body>
 </html>
