@@ -165,37 +165,44 @@
                     'app-id=' + iosAppID + ', app-argument=' + redirectURL);
             }
 
-            // Auto-trigger Universal Link on page load.
-            // iOS intercepts navigation to bjpsrl.in from github.io (cross-domain) → opens app to correct screen.
+            // Show "Open App" button — user tap triggers Universal Link (requires user gesture on iOS)
             if (redirectURL) {
-                window.location.href = redirectURL;
-            }
+                var openBtn = document.createElement('a');
+                openBtn.href = redirectURL;
+                openBtn.className = 'btn-open';
+                openBtn.textContent = 'Open App';
+                openBtn.addEventListener('click', function() {
+                    // After tap, show App Store fallback in case app is not installed
+                    setTimeout(function() {
+                        var storeActions = document.getElementById('store-actions');
+                        storeActions.hidden = false;
 
-            // If app not installed, show App Store button after 1.5s
-            var fallbackTimer = setTimeout(function() {
+                        if (iosStore) {
+                            var a = document.createElement('a');
+                            a.href = iosStore;
+                            a.className = 'btn-open';
+                            a.style.background = '#000';
+                            a.textContent = 'Download on App Store';
+                            storeActions.appendChild(a);
+                        }
+                        var a2 = document.createElement('a');
+                        a2.href = redirectURL;
+                        a2.className = 'link-web';
+                        a2.textContent = 'Continue to website';
+                        storeActions.appendChild(a2);
+                    }, 1500);
+
+                    document.addEventListener('visibilitychange', function onHide() {
+                        if (document.hidden) {
+                            document.removeEventListener('visibilitychange', onHide);
+                        }
+                    });
+                });
+
                 var storeActions = document.getElementById('store-actions');
                 storeActions.hidden = false;
-
-                if (iosStore) {
-                    var a = document.createElement('a');
-                    a.href = iosStore;
-                    a.className = 'btn-open';
-                    a.style.background = '#000';
-                    a.textContent = 'Download on App Store';
-                    storeActions.appendChild(a);
-                }
-                if (redirectURL) {
-                    var a2 = document.createElement('a');
-                    a2.href = redirectURL;
-                    a2.className = 'link-web';
-                    a2.textContent = 'Continue to website';
-                    storeActions.appendChild(a2);
-                }
-            }, 1500);
-
-            document.addEventListener('visibilitychange', function() {
-                if (document.hidden) clearTimeout(fallbackTimer);
-            });
+                storeActions.insertBefore(openBtn, storeActions.firstChild);
+            }
         }
 
         if (code && base) {
