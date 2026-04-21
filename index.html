@@ -151,6 +151,18 @@
             background: #0085D1;
         }
 
+        .phone-container.no-image .hero-section {
+            display: none !important;
+        }
+
+        .phone-container.no-image .content-section {
+            padding-top: 10px;
+        }
+
+        .phone-container.no-image .header {
+            padding-bottom: 24px;
+        }
+
         [hidden] { display: none !important; }
     </style>
 </head>
@@ -163,7 +175,7 @@
             <h2 class="app-name">Saral App</h2>
         </header>
 
-        <div class="hero-section">
+        <div id="hero-section" class="hero-section">
             <img id="preview-image" class="hero-image" src="" alt="">
             <div id="image-loader" class="hero-placeholder"></div>
         </div>
@@ -209,8 +221,7 @@
                     loader.style.display = 'none';
                 };
             } else {
-                loader.style.display = 'none';
-                document.querySelector('.hero-section').style.display = 'none';
+                document.querySelector('.phone-container').classList.add('no-image');
             }
 
             if (iosAppID && redirectURL) {
@@ -245,13 +256,12 @@
                 .catch(function(err) {
                     console.error('Failed to load preview:', err);
                     document.getElementById('preview-title').textContent = 'Link Not Found';
-                    document.querySelector('.hero-section').style.display = 'none';
+                    document.querySelector('.phone-container').classList.add('no-image');
                 });
         } else {
             // Default placeholder state for direct access
             document.getElementById('preview-title').textContent = 'Opening App...';
-            document.getElementById('image-loader').style.display = 'none';
-            document.querySelector('.hero-section').style.display = 'none';
+            document.querySelector('.phone-container').classList.add('no-image');
         }
     </script>
 </body>
